@@ -27,6 +27,8 @@ import com.example.demymath.ui.theme.DemyMathTheme
 import androidx.annotation.StringRes
 import com.example.demymath.R
 import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.demymath.data.AppDatabase
 import com.example.demymath.data.AppRepository
 
@@ -36,7 +38,7 @@ sealed class Screen(
     val icon: ImageVector
 ) {
     object KnowledgeGraph : Screen("graph", R.string.nav_graph, Icons.Default.AccountTree)
-    object Statistics : Screen("stats", R.string.nav_stats, Icons.Default.BarChart)
+    object Statistics : Screen("statistics", R.string.nav_stats, Icons.Default.BarChart)
     object Profile : Screen("profile", R.string.nav_profile, Icons.Default.Person)
 }
 
@@ -93,9 +95,6 @@ fun MainScreen(repository: AppRepository) {
             composable(Screen.KnowledgeGraph.route) {
                 KnowledgeGraphScreen(repository, navController)
             }
-            composable(Screen.Statistics.route) {
-                SimpleScreen(stringResource(R.string.screen_stats_title))
-            }
             composable(Screen.Profile.route) {
                 SimpleScreen(stringResource(R.string.screen_profile_title))
             }
@@ -111,6 +110,16 @@ fun MainScreen(repository: AppRepository) {
                 val id = backStackEntry.arguments?.getString("topicId") ?: ""
                 val score = backStackEntry.arguments?.getString("score")?.toInt() ?: 0
                 FinalReflectionScreen(id, score, repository, navController)
+            }
+            composable("statistics") {
+                GeneralStatisticsScreen(repository, navController)
+            }
+            composable(
+                route = "topic_stats/{topicId}",
+                arguments = listOf(navArgument("topicId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
+                TopicStatisticsScreen(topicId, repository, navController)
             }
         }
     }

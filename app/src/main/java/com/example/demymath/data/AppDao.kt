@@ -2,6 +2,7 @@ package com.example.demymath.data
 
 import android.R
 import androidx.room.*
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AppDao {
@@ -88,5 +89,37 @@ interface AppDao {
         @Embedded val question: QuestionEntity,
         @Relation(parentColumn = "questionId", entityColumn = "questionId")
         val answers: List<AnswerEntity>
+    )
+
+    @Query("""
+    SELECT * FROM reflection_marks 
+    WHERE markId IN (SELECT MAX(markId) FROM reflection_marks GROUP BY topicId)
+""")
+    fun getAllLatestMarks(): Flow<List<ReflectionMarkEntity>>
+
+    @Query("SELECT * FROM reflection_marks WHERE topicId = :topicId ORDER BY timestamp ASC")
+    fun getMarksForTopic(topicId: String): Flow<List<ReflectionMarkEntity>>
+
+    @Query("SELECT * FROM reflection_notes WHERE topicId = :topicId ORDER BY timestamp DESC")
+    fun getNotesForTopic(topicId: String): Flow<List<ReflectionNoteEntity>>
+
+    @Delete
+    suspend fun deleteNote(note: ReflectionNoteEntity)
+
+    @Query("""
+    SELECT m.*, l.value as topicName 
+    FROM reflection_marks m
+    JOIN user_progress u ON m.topicId = u.topicId
+    JOIN topics t ON m.topicId = t.topicId
+    JOIN localization l ON t.titleKey = l.`key`
+    WHERE u.status = 2 AND l.lang = :lang
+    AND m.markId IN (SELECT MAX(markId) FROM reflection_marks GROUP BY topicId)
+""")
+    fun getFinishedTopicsWithNames(lang: String): Flow<List<TopicWithMark>>
+
+    // Створимо допоміжний клас для результату
+    data class TopicWithMark(
+        @Embedded val mark: ReflectionMarkEntity,
+        val topicName: String
     )
 }

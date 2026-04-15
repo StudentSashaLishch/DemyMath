@@ -117,4 +117,23 @@ class AppRepository(private val db: AppDatabase) {
     suspend fun saveNote(userId: Int, topicId: String, text: String) = withContext(Dispatchers.IO) {
         dao.insertReflectionNote(ReflectionNoteEntity(userId = userId, topicId = topicId, text = text))
     }
+
+    suspend fun getTopicById(topicId: String): TopicEntity? = withContext(Dispatchers.IO) {
+        dao.getTopicById(topicId)
+    }
+
+    suspend fun getString(key: String, lang: String): String? = withContext(Dispatchers.IO) {
+        dao.getString(key, lang)
+    }
+
+    fun getFinishedTopicsWithNames(lang: String) = dao.getFinishedTopicsWithNames(lang)
+
+    // Онови ці методи (переконайся, що вони використовують нові запити з DAO)
+    fun getAllLatestMarks() = dao.getAllLatestMarks()
+    fun getMarksForTopic(topicId: String) = dao.getMarksForTopic(topicId)
+    fun getNotesForTopic(topicId: String) = dao.getNotesForTopic(topicId)
+
+    suspend fun deleteNote(note: ReflectionNoteEntity) = withContext(Dispatchers.IO) {
+        dao.deleteNote(note)
+    }
 }
