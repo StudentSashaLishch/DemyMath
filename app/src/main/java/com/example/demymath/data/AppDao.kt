@@ -57,4 +57,36 @@ interface AppDao {
 
     @Query("SELECT * FROM topics WHERE topicId = :id LIMIT 1")
     suspend fun getTopicById(id: String): TopicEntity?
+
+    @Insert
+    suspend fun insertReflectionMark(mark: ReflectionMarkEntity)
+
+    @Query("SELECT * FROM reflection_marks WHERE topicId = :topicId AND userId = :userId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLastMarkForTopic(topicId: String, userId: Int): ReflectionMarkEntity?
+
+    @Transaction
+    @Query("SELECT * FROM questions WHERE testId = :testId")
+    suspend fun getQuestionsWithAnswers(testId: Int): List<QuestionWithAnswers>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTestProgress(progress: TestProgressEntity)
+
+    @Insert
+    suspend fun insertReflectionNote(note: ReflectionNoteEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTest(test: List<TestEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQuestion(question: List<QuestionEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAnswer(answer: List<AnswerEntity>)
+
+    // Допоміжна модель для зв'язку
+    data class QuestionWithAnswers(
+        @Embedded val question: QuestionEntity,
+        @Relation(parentColumn = "questionId", entityColumn = "questionId")
+        val answers: List<AnswerEntity>
+    )
 }

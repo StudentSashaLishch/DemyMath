@@ -103,6 +103,15 @@ fun MainScreen(repository: AppRepository) {
                 val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
                 LearningScreen(topicId, repository, navController)
             }
+            composable("quiz/{topicId}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("topicId") ?: ""
+                QuizScreen(id, repository, navController)
+            }
+            composable("reflection/{topicId}/{score}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("topicId") ?: ""
+                val score = backStackEntry.arguments?.getString("score")?.toInt() ?: 0
+                FinalReflectionScreen(id, score, repository, navController)
+            }
         }
     }
 }

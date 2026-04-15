@@ -81,4 +81,40 @@ class AppRepository(private val db: AppDatabase) {
         "add" -> Icons.Default.Add
         else -> Icons.Default.Help
     }
+
+    suspend fun saveReflectionMark(userId: Int, topicId: String, score: Int) = withContext(Dispatchers.IO) {
+        dao.insertReflectionMark(ReflectionMarkEntity(userId = userId, topicId = topicId, confidenceScore = score))
+    }
+
+    suspend fun getLastConfidenceScore(userId: Int, topicId: String): Int? = withContext(Dispatchers.IO) {
+        dao.getLastMarkForTopic(topicId, userId)?.confidenceScore
+    }
+
+    suspend fun getTestData(topicId: Int): List<AppDao.QuestionWithAnswers> = withContext(Dispatchers.IO) {
+        val currentLang = Locale.getDefault().language
+        val data = dao.getQuestionsWithAnswers(topicId)
+
+        // Проходимо по кожному питанню і відповіді, замінюючи ключ на переклад
+        data.map { wrap ->
+            val translatedQuestion = wrap.question.copy(
+                textKey = dao.getString(wrap.question.textKey, currentLang) ?: wrap.question.textKey
+            )
+            val translatedAnswers = wrap.answers.map { ans ->
+                ans.copy(textKey = dao.getString(ans.textKey, currentLang) ?: ans.textKey)
+            }
+            AppDao.QuestionWithAnswers(translatedQuestion, translatedAnswers)
+        }
+    }
+
+    suspend fun completeTest(userId: Int, topicId: String, score: Int) = withContext(Dispatchers.IO) {
+        dao.upsertTestProgress(TestProgressEntity(userId, topicId.toInt(), score))
+        if (score >= 60) {
+            // Якщо здано, міняємо статус теми на 2 (Пройдено)
+            updateUserProgress(userId, topicId, 2)
+        }
+    }
+
+    suspend fun saveNote(userId: Int, topicId: String, text: String) = withContext(Dispatchers.IO) {
+        dao.insertReflectionNote(ReflectionNoteEntity(userId = userId, topicId = topicId, text = text))
+    }
 }

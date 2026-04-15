@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.demymath.data.AppRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +45,7 @@ fun LearningScreen(topicId: String, repository: AppRepository, navController: Na
                     }
                 },
                 actions = {
-                    EmojiDropdown()
+                    EmojiDropdown(topicId, repository)
                 }
             )
         }
@@ -88,7 +89,9 @@ fun LearningScreen(topicId: String, repository: AppRepository, navController: Na
             // Статична кнопка внизу
             Surface(shadowElevation = 8.dp) {
                 Button(
-                    onClick = { /* Логіка вправ буде пізніше */ },
+                    onClick = {
+                        navController.navigate("quiz/$topicId")
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
@@ -103,29 +106,65 @@ fun LearningScreen(topicId: String, repository: AppRepository, navController: Na
 }
 
 @Composable
-fun EmojiDropdown() {
+fun EmojiDropdown(topicId: String, repository: AppRepository) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedEmoji by remember { mutableStateOf("😎") }
-    val emojis = listOf("😎", "😃", "🤨", "😥", "🤯")
+
+    // Мапа смайликів до оцінок 1-5
+    val emojiMap = mapOf(1 to "🤯", 2 to "😥", 3 to "🤨", 4 to "😃", 5 to "😎")
+
+    // Стан для відображення обраного смайлика (завантажуємо останній з БД)
+    var selectedScore by remember { mutableStateOf(5) } // За замовчуванням 5 (😎)
+    var pendingScore by remember { mutableStateOf<Int?>(null) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+
+    // Завантажуємо останню оцінку при вході на екран
+    LaunchedEffect(topicId) {
+        repository.getLastConfidenceScore(1, topicId)?.let {
+            selectedScore = it
+        }
+    }
 
     Box {
         IconButton(onClick = { expanded = true }) {
-            Text(selectedEmoji, fontSize = 24.sp)
+            Text(emojiMap[selectedScore] ?: "😎", fontSize = 24.sp)
         }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            emojis.forEach { emoji ->
+
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            emojiMap.forEach { (score, emoji) ->
                 DropdownMenuItem(
-                    text = { Text(emoji, fontSize = 24.sp) },
+                    text = { Text("$emoji", fontSize = 24.sp) },
                     onClick = {
-                        selectedEmoji = emoji
+                        pendingScore = score
+                        showConfirmDialog = true
                         expanded = false
                     }
                 )
             }
         }
+    }
+
+    // Діалог підтвердження
+    if (showConfirmDialog && pendingScore != null) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Підтвердження") },
+            text = { Text("Ви впевнені, що ваша оцінка ${emojiMap[pendingScore]}?") },
+            confirmButton = {
+                Button(onClick = {
+                    val score = pendingScore!!
+                    scope.launch {
+                        repository.saveReflectionMark(1, topicId, score)
+                        selectedScore = score
+                        showConfirmDialog = false
+                    }
+                }) { Text("Так") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) { Text("Ні") }
+            }
+        )
     }
 }
 
