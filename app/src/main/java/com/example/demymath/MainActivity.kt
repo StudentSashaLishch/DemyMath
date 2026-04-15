@@ -96,7 +96,7 @@ fun MainScreen(repository: AppRepository) {
                 KnowledgeGraphScreen(repository, navController)
             }
             composable(Screen.Profile.route) {
-                SimpleScreen(stringResource(R.string.screen_profile_title))
+                ProfileScreen(1, repository)
             }
             composable("learning/{topicId}") { backStackEntry ->
                 val topicId = backStackEntry.arguments?.getString("topicId") ?: ""

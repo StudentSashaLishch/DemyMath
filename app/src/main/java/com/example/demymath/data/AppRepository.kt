@@ -9,6 +9,7 @@ import com.example.demymath.TopicWithContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import androidx.room.withTransaction
 
 class AppRepository(private val db: AppDatabase) {
     private val dao = db.appDao()
@@ -135,5 +136,23 @@ class AppRepository(private val db: AppDatabase) {
 
     suspend fun deleteNote(note: ReflectionNoteEntity) = withContext(Dispatchers.IO) {
         dao.deleteNote(note)
+    }
+
+    fun getTotalTopicsCount() = dao.getTotalTopicsCount()
+
+    fun getFinishedTopicsCount(userId: Int) = dao.getFinishedTopicsCount(userId)
+
+    suspend fun resetAllProgress(userId: Int) = withContext(Dispatchers.IO) {
+        // Використовуємо withTransaction замість runInTransaction
+        db.withTransaction {
+            dao.deleteAllReflectionMarks(userId)
+            dao.deleteAllTestProgress(userId)
+            dao.resetAllUserProgress(userId)
+            dao.deleteAllNotes(userId)
+        }
+    }
+
+    suspend fun getUserById(userId: Int): User? = withContext(Dispatchers.IO) {
+        dao.getUserById(userId)
     }
 }

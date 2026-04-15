@@ -122,4 +122,24 @@ interface AppDao {
         @Embedded val mark: ReflectionMarkEntity,
         val topicName: String
     )
+
+    @Query("DELETE FROM reflection_marks WHERE userId = :userId")
+    suspend fun deleteAllReflectionMarks(userId: Int)
+
+    @Query("DELETE FROM test_progress WHERE userId = :userId")
+    suspend fun deleteAllTestProgress(userId: Int)
+
+    @Query("UPDATE user_progress SET status = 0 WHERE userId = :userId")
+    suspend fun resetAllUserProgress(userId: Int)
+
+    @Query("DELETE FROM reflection_notes WHERE userId = :userId")
+    suspend fun deleteAllNotes(userId: Int)
+
+    @Query("SELECT COUNT(*) FROM topics")
+    fun getTotalTopicsCount(): kotlinx.coroutines.flow.Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM user_progress WHERE userId = :userId AND status = 2")
+    fun getFinishedTopicsCount(userId: Int): kotlinx.coroutines.flow.Flow<Int>
+
+    @Query("SELECT * FROM users WHERE userId = :userId") suspend fun getUserById(userId: Int): User?
 }
