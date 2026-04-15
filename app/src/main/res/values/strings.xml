@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">DemyMath</string>
+    <string name="nav_graph">Карта знань</string>
+    <string name="nav_stats">Статистика</string>
+    <string name="nav_profile">Профіль</string>
+
+    <string name="screen_graph_title">Граф знань (Карта)</string>
+    <string name="screen_stats_title">Статистика успішності</string>
+    <string name="screen_profile_title">Особистий профіль</string>
+</resources>
