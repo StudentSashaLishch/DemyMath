@@ -2,6 +2,7 @@ package com.example.demymath
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,7 +46,7 @@ fun LearningScreen(topicId: String, repository: AppRepository, navController: Na
                     }
                 },
                 actions = {
-                    EmojiDropdown(topicId, repository)
+                    EmojiDropdown(topicId, repository, {})
                 }
             )
         }
@@ -106,23 +107,25 @@ fun LearningScreen(topicId: String, repository: AppRepository, navController: Na
 }
 
 @Composable
-fun EmojiDropdown(topicId: String, repository: AppRepository) {
+fun EmojiDropdown(
+    topicId: String,
+    repository: AppRepository,
+    onSelect: (Int) -> Unit
+) {
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
-
-    // Мапа смайликів до оцінок 1-5
     val emojiMap = mapOf(1 to "🤯", 2 to "😥", 3 to "🤨", 4 to "😃", 5 to "😎")
 
-    // Стан для відображення обраного смайлика (завантажуємо останній з БД)
-    var selectedScore by remember { mutableStateOf(5) } // За замовчуванням 5 (😎)
+    var selectedScore by remember { mutableStateOf(5) }
     var pendingScore by remember { mutableStateOf<Int?>(null) }
     var showConfirmDialog by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
-    // Завантажуємо останню оцінку при вході на екран
     LaunchedEffect(topicId) {
         repository.getLastConfidenceScore(1, topicId)?.let {
             selectedScore = it
+            onSelect(it)
         }
     }
 
@@ -145,7 +148,6 @@ fun EmojiDropdown(topicId: String, repository: AppRepository) {
         }
     }
 
-    // Діалог підтвердження
     if (showConfirmDialog && pendingScore != null) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
@@ -157,6 +159,8 @@ fun EmojiDropdown(topicId: String, repository: AppRepository) {
                     scope.launch {
                         repository.saveReflectionMark(1, topicId, score)
                         selectedScore = score
+                        onSelect(score)
+                        Toast.makeText(context, "Оцінку збережено: ${emojiMap[score]}", Toast.LENGTH_SHORT).show()
                         showConfirmDialog = false
                     }
                 }) { Text("Так") }

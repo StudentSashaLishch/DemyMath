@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.demymath.data.AppRepository
+import com.example.demymath.data.ReflectionNoteEntity
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -24,6 +25,7 @@ import java.util.*
 fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navController: NavController) {
     val marks by repository.getMarksForTopic(topicId).collectAsState(initial = emptyList())
     val notes by repository.getNotesForTopic(topicId).collectAsState(initial = emptyList())
+    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val dateFormat = remember { SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()) }
 
@@ -39,6 +41,7 @@ fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navControl
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(topicName) },
@@ -93,7 +96,17 @@ fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navControl
                             title = { Text("Видалити нотатку?") },
                             confirmButton = {
                                 TextButton(onClick = {
-                                    scope.launch { repository.deleteNote(note) }
+                                    scope.launch {
+                                        repository.deleteNote(note)
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = "Нотатку видалено",
+                                            actionLabel = "Скасувати",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            repository.saveNote(note.userId, note.topicId, note.text)
+                                        }
+                                    }
                                     showDeleteDialog = false
                                 }) { Text("Видалити", color = Color.Red) }
                             },

@@ -136,10 +136,34 @@ interface AppDao {
     suspend fun deleteAllNotes(userId: Int)
 
     @Query("SELECT COUNT(*) FROM topics")
-    fun getTotalTopicsCount(): kotlinx.coroutines.flow.Flow<Int>
+    fun getTotalTopicsCount(): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM user_progress WHERE userId = :userId AND status = 2")
-    fun getFinishedTopicsCount(userId: Int): kotlinx.coroutines.flow.Flow<Int>
+    fun getFinishedTopicsCount(userId: Int): Flow<Int>
 
-    @Query("SELECT * FROM users WHERE userId = :userId") suspend fun getUserById(userId: Int): User?
+    @Query("SELECT * FROM users WHERE userId = :id")
+    fun getUserById(id: Int): Flow<User?>
+
+    @Query("""
+    UPDATE user_progress 
+    SET status = 3 
+    WHERE userId = :userId AND nextReviewDate <= :currentTime AND status = 2
+    """)
+    suspend fun markTopicsForRepetition(userId: Int, currentTime: Long)
+
+    @Query("""
+    UPDATE user_progress 
+    SET lastReviewDate = :last, nextReviewDate = :next, status = :status 
+    WHERE userId = :userId AND topicId = :topicId
+    """)
+    suspend fun updateReviewDates(userId: Int, topicId: String, last: Long, next: Long, status: Int)
+
+    @Query("SELECT * FROM users")
+    suspend fun getAllUsers(): List<User>
+
+    @Delete
+    suspend fun deleteUser(user: User)
+
+    @Update
+    suspend fun updateUser(user: User)
 }

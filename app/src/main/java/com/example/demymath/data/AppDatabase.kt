@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
         AnswerEntity::class,
         TestProgressEntity::class,
         ReflectionNoteEntity::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -48,8 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                                 CoroutineScope(Dispatchers.IO).launch {
                                     val dao = database.appDao()
 
-                                    // 1. Створюємо гостя
-                                    val userId = dao.insertUser(User(displayName = "Гість")).toInt()
+                                    val userId = dao.insertUser(User()).toInt()
 
                                     val localization = listOf(
                                         LocalizationEntity("t_arith_title", "uk", "Арифметика"),

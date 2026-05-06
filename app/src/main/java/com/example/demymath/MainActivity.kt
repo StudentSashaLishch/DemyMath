@@ -25,12 +25,20 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.demymath.ui.theme.DemyMathTheme
 import androidx.annotation.StringRes
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import com.example.demymath.R
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.demymath.data.AppDatabase
 import com.example.demymath.data.AppRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 sealed class Screen(
     val route: String,
@@ -50,17 +58,27 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            DemyMathTheme {
-                MainScreen(repository)
+            var isDarkTheme by remember { mutableStateOf(false) }
+            DemyMathTheme(darkTheme = isDarkTheme) {
+                MainScreen(repository, isDarkTheme, onThemeChange = { isDarkTheme = it })
             }
         }
     }
 }
 
 @Composable
-fun MainScreen(repository: AppRepository) {
+fun MainScreen(
+    repository: AppRepository,
+    isDarkTheme: Boolean,
+    onThemeChange: (Boolean) -> Unit
+) {
     val navController = rememberNavController()
     val items = listOf(Screen.KnowledgeGraph, Screen.Statistics, Screen.Profile)
+    var currentUserId by rememberSaveable { mutableIntStateOf(1) }
+
+    LaunchedEffect(Unit) {
+        repository.checkAndRefreshRepetitions(1)
+    }
 
     Scaffold(
         bottomBar = {
@@ -96,7 +114,12 @@ fun MainScreen(repository: AppRepository) {
                 KnowledgeGraphScreen(repository, navController)
             }
             composable(Screen.Profile.route) {
-                ProfileScreen(1, repository)
+                ProfileScreen(userId = 1,
+                    repository = repository,
+                    isDarkTheme = isDarkTheme,
+                    onThemeChange = onThemeChange,
+                    onUserChanged = { newId -> currentUserId = newId }
+                )
             }
             composable("learning/{topicId}") { backStackEntry ->
                 val topicId = backStackEntry.arguments?.getString("topicId") ?: ""

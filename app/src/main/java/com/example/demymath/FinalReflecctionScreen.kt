@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun FinalReflectionScreen(topicId: String, score: Int, repository: AppRepository, navController: NavController) {
     var noteText by remember { mutableStateOf("") }
+    var selectedConfidence by remember { mutableStateOf(3) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -38,8 +39,11 @@ fun FinalReflectionScreen(topicId: String, score: Int, repository: AppRepository
 
         Text("Як ви оцінюєте своє розуміння тепер?", style = MaterialTheme.typography.bodyLarge)
 
-        // Викликаємо компонент рефлексії
-        EmojiDropdown(topicId = topicId, repository = repository)
+        EmojiDropdown(
+            topicId = topicId,
+            repository = repository,
+            onSelect = { selectedConfidence = it }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -59,8 +63,8 @@ fun FinalReflectionScreen(topicId: String, score: Int, repository: AppRepository
             onClick = {
                 scope.launch {
                     repository.saveNote(1, topicId, noteText)
+                    repository.scheduleNextReview(1, topicId, score, selectedConfidence)
                     navController.navigate("graph") {
-                        // Очищуємо стек, щоб не можна було повернутися назад у тест кнопкою "Back"
                         popUpTo("graph") { inclusive = true }
                     }
                 }

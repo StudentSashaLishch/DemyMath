@@ -95,7 +95,6 @@ class AppRepository(private val db: AppDatabase) {
         val currentLang = Locale.getDefault().language
         val data = dao.getQuestionsWithAnswers(topicId)
 
-        // Проходимо по кожному питанню і відповіді, замінюючи ключ на переклад
         data.map { wrap ->
             val translatedQuestion = wrap.question.copy(
                 textKey = dao.getString(wrap.question.textKey, currentLang) ?: wrap.question.textKey
@@ -110,7 +109,6 @@ class AppRepository(private val db: AppDatabase) {
     suspend fun completeTest(userId: Int, topicId: String, score: Int) = withContext(Dispatchers.IO) {
         dao.upsertTestProgress(TestProgressEntity(userId, topicId.toInt(), score))
         if (score >= 60) {
-            // Якщо здано, міняємо статус теми на 2 (Пройдено)
             updateUserProgress(userId, topicId, 2)
         }
     }
@@ -129,7 +127,6 @@ class AppRepository(private val db: AppDatabase) {
 
     fun getFinishedTopicsWithNames(lang: String) = dao.getFinishedTopicsWithNames(lang)
 
-    // Онови ці методи (переконайся, що вони використовують нові запити з DAO)
     fun getAllLatestMarks() = dao.getAllLatestMarks()
     fun getMarksForTopic(topicId: String) = dao.getMarksForTopic(topicId)
     fun getNotesForTopic(topicId: String) = dao.getNotesForTopic(topicId)
@@ -143,7 +140,6 @@ class AppRepository(private val db: AppDatabase) {
     fun getFinishedTopicsCount(userId: Int) = dao.getFinishedTopicsCount(userId)
 
     suspend fun resetAllProgress(userId: Int) = withContext(Dispatchers.IO) {
-        // Використовуємо withTransaction замість runInTransaction
         db.withTransaction {
             dao.deleteAllReflectionMarks(userId)
             dao.deleteAllTestProgress(userId)
@@ -154,5 +150,34 @@ class AppRepository(private val db: AppDatabase) {
 
     suspend fun getUserById(userId: Int): User? = withContext(Dispatchers.IO) {
         dao.getUserById(userId)
+    }
+
+    suspend fun checkAndRefreshRepetitions(userId: Int) = withContext(Dispatchers.IO) {
+        val currentTime = System.currentTimeMillis()
+        dao.markTopicsForRepetition(userId, currentTime)
+    }
+
+    suspend fun scheduleNextReview(userId: Int, topicId: String, testScore: Int, confidence: Int) = withContext(Dispatchers.IO) {
+        val daysToAdd = (testScore / 20) + confidence
+        val lastReview = System.currentTimeMillis()
+        val nextReview = lastReview + (daysToAdd * 24 * 60 * 60 * 1000L)
+
+        dao.updateReviewDates(userId, topicId, lastReview, nextReview, status = 2)
+    }
+
+    suspend fun getAllUsers(): List<User> = withContext(Dispatchers.IO) {
+        dao.getAllUsers()
+    }
+
+    suspend fun createNewUser(user: User): Long = withContext(Dispatchers.IO) {
+        dao.insertUser(user)
+    }
+
+    suspend fun deleteUser(user: User) = withContext(Dispatchers.IO) {
+        dao.deleteUser(user)
+    }
+
+    suspend fun updateUser(user: User) = withContext(Dispatchers.IO) {
+        dao.updateUser(user)
     }
 }
