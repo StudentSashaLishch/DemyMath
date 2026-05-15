@@ -15,7 +15,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuizScreen(topicId: String, repository: AppRepository, navController: NavController) {
+fun QuizScreen(
+    topicId: String,
+    userId: Int,
+    repository: AppRepository,
+    navController: NavController
+) {
     // Вказуємо повний шлях до моделі, якщо вона всередині Dao
     var questions by remember { mutableStateOf(emptyList<AppDao.QuestionWithAnswers>()) }
     var currentQuestionIndex by remember { mutableStateOf(0) }
@@ -77,7 +82,7 @@ fun QuizScreen(topicId: String, repository: AppRepository, navController: NavCon
                         } else {
                             val finalScore = (correctAnswersCount.toFloat() / questions.size * 100).toInt()
                             scope.launch {
-                                repository.completeTest(1, topicId, finalScore)
+                                repository.completeTest(userId, topicId, finalScore)
                                 navController.navigate("reflection/$topicId/$finalScore")
                             }
                         }

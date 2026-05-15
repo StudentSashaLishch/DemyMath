@@ -64,20 +64,18 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
-    userId: Int,
+    viewModel: SharedViewModel,
     repository: AppRepository,
     isDarkTheme: Boolean,
     onThemeChange: (Boolean) -> Unit,
-    onUserChanged: (Int) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var activeDialog by remember { mutableStateOf<ProfileDialogType?>(null) }
 
-    // Дані (State)
+    // Підписка на дані через ViewModel
+    val currentUser by viewModel.currentUser.collectAsState()
+    val finishedTopics by viewModel.finishedTopicsCount.collectAsState()
     val totalTopics by repository.getTotalTopicsCount().collectAsState(initial = 0)
-    val finishedTopics by repository.getFinishedTopicsCount(userId).collectAsState(initial = 0)
-    val user by produceState<User?>(initialValue = null, userId) { value = repository.getUserById(userId) }
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
         // 1. ВЕРХНЯ ПАНЕЛЬ
@@ -87,9 +85,12 @@ fun ProfileScreen(
             onAction = { action ->
                 when(action) {
                     ProfileAction.Create -> activeDialog = ProfileDialogType.CREATE
-                    ProfileAction.Login -> scope.launch { /* fetch users */; activeDialog = ProfileDialogType.LOGIN }
-                    ProfileAction.Logout -> onUserChanged(1)
-                    ProfileAction.Edit -> if(userId != 1) activeDialog = ProfileDialogType.EDIT
+                    ProfileAction.Login -> activeDialog = ProfileDialogType.LOGIN
+                    ProfileAction.Logout -> viewModel.switchUser(1) // Повернення до гостя
+                    ProfileAction.Edit -> {
+                        if (currentUser?.userId != 1) activeDialog = ProfileDialogType.EDIT
+                        else Toast.makeText(context, "Профіль гостя не можна редагувати", Toast.LENGTH_SHORT).show()
+                    }
                     ProfileAction.Delete -> activeDialog = ProfileDialogType.DELETE_SELECT
                     else -> Toast.makeText(context, "В розробці", Toast.LENGTH_SHORT).show()
                 }
@@ -100,8 +101,8 @@ fun ProfileScreen(
 
         // 2. ОСНОВНИЙ КОНТЕНТ
         ProfileContent(
-            userName = user?.displayName ?: "Гість",
-            avatarUri = user?.avatarUrі,
+            userName = currentUser?.displayName ?: "Гість",
+            avatarUri = currentUser?.avatarUrі,
             finishedTopics = finishedTopics,
             totalTopics = totalTopics
         )
@@ -115,17 +116,16 @@ fun ProfileScreen(
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
         ) {
             Icon(Icons.Default.Refresh, null)
-            Text("Скинути весь прогрес")
+            Spacer(Modifier.width(8.dp))
+            Text("Скинути мій прогрес")
         }
     }
 
-    // 4. ДІАЛОГИ (винесені в окремий файл/метод)
     ProfileDialogManager(
         type = activeDialog,
         repository = repository,
-        userId = userId,
-        onDismiss = { activeDialog = null },
-        onUserChanged = onUserChanged
+        viewModel = viewModel,
+        onDismiss = { activeDialog = null }
     )
 }
 

@@ -23,7 +23,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LearningScreen(topicId: String, repository: AppRepository, navController: NavController) {
+fun LearningScreen(
+    topicId: String,
+    userId: Int,
+    repository: AppRepository,
+    navController: NavController
+) {
     var topicData by remember { mutableStateOf<TopicWithContent?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -46,7 +51,7 @@ fun LearningScreen(topicId: String, repository: AppRepository, navController: Na
                     }
                 },
                 actions = {
-                    EmojiDropdown(topicId, repository, {})
+                    EmojiDropdown(topicId, userId, repository, {})
                 }
             )
         }
@@ -109,6 +114,7 @@ fun LearningScreen(topicId: String, repository: AppRepository, navController: Na
 @Composable
 fun EmojiDropdown(
     topicId: String,
+    userId: Int,
     repository: AppRepository,
     onSelect: (Int) -> Unit
 ) {
@@ -122,8 +128,8 @@ fun EmojiDropdown(
 
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(topicId) {
-        repository.getLastConfidenceScore(1, topicId)?.let {
+    LaunchedEffect(topicId, userId) {
+        repository.getLastConfidenceScore(userId, topicId)?.let {
             selectedScore = it
             onSelect(it)
         }
@@ -152,15 +158,16 @@ fun EmojiDropdown(
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
             title = { Text("Підтвердження") },
-            text = { Text("Ви впевнені, що ваша оцінка ${emojiMap[pendingScore]}?") },
+            text = { Text("Ви впевнені, що ваша оцінка ${emojiMap[pendingScore!!]}?") },
             confirmButton = {
                 Button(onClick = {
                     val score = pendingScore!!
                     scope.launch {
-                        repository.saveReflectionMark(1, topicId, score)
+                        // Використовуємо переданий userId замість '1'
+                        repository.saveReflectionMark(userId, topicId, score)
                         selectedScore = score
                         onSelect(score)
-                        Toast.makeText(context, "Оцінку збережено: ${emojiMap[score]}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Оцінку збережено", Toast.LENGTH_SHORT).show()
                         showConfirmDialog = false
                     }
                 }) { Text("Так") }

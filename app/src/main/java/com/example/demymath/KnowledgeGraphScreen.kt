@@ -28,19 +28,21 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 
 @Composable
-fun KnowledgeGraphScreen(repository: AppRepository, navController: NavController) {
+fun KnowledgeGraphScreen(
+    userId: Int, // Отримуємо актуальний ID
+    repository: AppRepository,
+    navController: NavController
+) {
     val state = remember { GraphState() }
-    val scope = rememberCoroutineScope() // ВИПРАВЛЕНО: Додано scope
+    val scope = rememberCoroutineScope()
     var topics by remember { mutableStateOf(emptyList<Topic>()) }
 
-    // Стани для діалогу
     var showWarningDialog by remember { mutableStateOf<List<String>?>(null) }
     var pendingTopicId by remember { mutableStateOf<String?>(null) }
 
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-
-    LaunchedEffect(Unit) {
-        topics = repository.getGraphData(userId = 1)
+    // ВАЖЛИВО: Перезавантажуємо дані щоразу, коли змінюється userId
+    LaunchedEffect(userId) {
+        topics = repository.getGraphData(userId = userId)
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
@@ -55,14 +57,12 @@ fun KnowledgeGraphScreen(repository: AppRepository, navController: NavController
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                // Обробка зуму та панорамування
                 detectTransformGestures { _, pan, zoom, _ ->
                     state.scale *= zoom
                     state.offset += pan
                 }
             }
-            .pointerInput(topics) {
-                // ОБРОБКА КЛІКІВ
+            .pointerInput(topics, userId) { // Додаємо userId в ключі input
                 detectTapGestures { offset ->
                     val canvasOffset = (offset - state.offset) / state.scale
                     val clickedTopic = topics.find {
@@ -76,7 +76,8 @@ fun KnowledgeGraphScreen(repository: AppRepository, navController: NavController
                             pendingTopicId = topic.id
                         } else {
                             scope.launch {
-                                if (topic.status == 0) repository.updateUserProgress(1, topic.id, 1)
+                                // Використовуємо userId замість "1"
+                                if (topic.status == 0) repository.updateUserProgress(userId, topic.id, 1)
                                 navController.navigate("learning/${topic.id}")
                             }
                         }
@@ -85,12 +86,10 @@ fun KnowledgeGraphScreen(repository: AppRepository, navController: NavController
             }
     ) {
         translate(left = state.offset.x, top = state.offset.y) {
-            // Масштабування теж робимо через блок
             scale(scale = state.scale, pivot = Offset.Zero) {
-
                 val baseRadius = 50f
 
-                // 1. Малюємо ребра
+                // 1. Ребра
                 topics.forEach { topic ->
                     topic.prerequisites.forEach { preId ->
                         val startNode = topics.find { it.id == preId }
@@ -106,7 +105,7 @@ fun KnowledgeGraphScreen(repository: AppRepository, navController: NavController
                     }
                 }
 
-                // 2. Малюємо вузли
+                // 2. Вузли
                 topics.forEach { topic ->
                     val center = Offset(topic.x, topic.y)
                     iconPainters[topic.id]?.let { painter ->
@@ -122,24 +121,18 @@ fun KnowledgeGraphScreen(repository: AppRepository, navController: NavController
                     drawContext.canvas.nativeCanvas.apply {
                         val paint = android.graphics.Paint().apply {
                             color = android.graphics.Color.BLACK
-                            textSize = 32f // Розмір тексту
+                            textSize = 32f
                             textAlign = android.graphics.Paint.Align.CENTER
                             isAntiAlias = true
-                            // Можна додати шрифт, якщо хочеться
                         }
-                        drawText(
-                            topic.title,
-                            center.x,
-                            center.y + baseRadius + 40f, // Відступ вниз від вузла
-                            paint
-                        )
+                        drawText(topic.title, center.x, center.y + baseRadius + 40f, paint)
                     }
                 }
             }
         }
     }
 
-    // Діалог попередження
+    // Діалог
     showWarningDialog?.let { unfinishedTitles ->
         AlertDialog(
             onDismissRequest = { showWarningDialog = null },
@@ -149,7 +142,8 @@ fun KnowledgeGraphScreen(repository: AppRepository, navController: NavController
                 Button(onClick = {
                     val id = pendingTopicId ?: return@Button
                     scope.launch {
-                        repository.updateUserProgress(1, id, 1)
+                        // Використовуємо актуальний userId
+                        repository.updateUserProgress(userId, id, 1)
                         navController.navigate("learning/$id")
                         showWarningDialog = null
                     }

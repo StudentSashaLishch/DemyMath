@@ -14,7 +14,13 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 
 @Composable
-fun FinalReflectionScreen(topicId: String, score: Int, repository: AppRepository, navController: NavController) {
+fun FinalReflectionScreen(
+    topicId: String,
+    score: Int,
+    userId: Int,
+    repository: AppRepository,
+    navController: NavController
+) {
     var noteText by remember { mutableStateOf("") }
     var selectedConfidence by remember { mutableStateOf(3) }
     val scope = rememberCoroutineScope()
@@ -39,8 +45,10 @@ fun FinalReflectionScreen(topicId: String, score: Int, repository: AppRepository
 
         Text("Як ви оцінюєте своє розуміння тепер?", style = MaterialTheme.typography.bodyLarge)
 
+        // Передаємо userId в EmojiDropdown, щоб він бачив оцінки цього юзера
         EmojiDropdown(
             topicId = topicId,
+            userId = userId,
             repository = repository,
             onSelect = { selectedConfidence = it }
         )
@@ -62,8 +70,12 @@ fun FinalReflectionScreen(topicId: String, score: Int, repository: AppRepository
         Button(
             onClick = {
                 scope.launch {
-                    repository.saveNote(1, topicId, noteText)
-                    repository.scheduleNextReview(1, topicId, score, selectedConfidence)
+                    // Використовуємо переданий userId замість '1'
+                    if (noteText.isNotBlank()) {
+                        repository.saveNote(userId, topicId, noteText)
+                    }
+                    repository.scheduleNextReview(userId, topicId, score, selectedConfidence)
+
                     navController.navigate("graph") {
                         popUpTo("graph") { inclusive = true }
                     }

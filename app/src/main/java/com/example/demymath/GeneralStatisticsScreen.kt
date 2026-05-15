@@ -17,14 +17,21 @@ import com.example.demymath.data.AppRepository
 import java.util.Locale
 
 @Composable
-fun GeneralStatisticsScreen(repository: AppRepository, navController: NavController) {
+fun GeneralStatisticsScreen(
+    viewModel: SharedViewModel,
+    navController: NavController
+) {
     val lang = remember { Locale.getDefault().language }
-    // Використовуємо новий запит, який повертає TopicWithMark
-    val topicsWithMarks by repository.getFinishedTopicsWithNames(lang).collectAsState(initial = emptyList())
 
-    val averageConfidence = if (topicsWithMarks.isNotEmpty()) {
-        topicsWithMarks.map { it.mark.confidenceScore }.average()
-    } else 0.0
+    // Підписуємося на потік тем, який залежить від userId у ViewModel
+    val topicsWithMarks by viewModel.getFinishedTopics(lang).collectAsState()
+
+    // Середній бал перераховується автоматично, коли змінюється список topicsWithMarks
+    val averageConfidence = remember(topicsWithMarks) {
+        if (topicsWithMarks.isNotEmpty()) {
+            topicsWithMarks.map { it.mark.confidenceScore }.average()
+        } else 0.0
+    }
 
     val emojis = listOf("❓", "😞", "😐", "🙂", "😀", "🤩")
 

@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import androidx.room.withTransaction
+import kotlinx.coroutines.flow.Flow
 
 class AppRepository(private val db: AppDatabase) {
     private val dao = db.appDao()
@@ -125,11 +126,11 @@ class AppRepository(private val db: AppDatabase) {
         dao.getString(key, lang)
     }
 
-    fun getFinishedTopicsWithNames(lang: String) = dao.getFinishedTopicsWithNames(lang)
+    fun getFinishedTopicsWithNames(userId: Int, lang: String) = dao.getFinishedTopicsWithNames(userId, lang)
 
     fun getAllLatestMarks() = dao.getAllLatestMarks()
-    fun getMarksForTopic(topicId: String) = dao.getMarksForTopic(topicId)
-    fun getNotesForTopic(topicId: String) = dao.getNotesForTopic(topicId)
+    fun getMarksForTopic(topicId: String, userId: Int) = dao.getMarksForTopic(topicId, userId)
+    fun getNotesForTopic(topicId: String, userId: Int) = dao.getNotesForTopic(topicId, userId)
 
     suspend fun deleteNote(note: ReflectionNoteEntity) = withContext(Dispatchers.IO) {
         dao.deleteNote(note)
@@ -148,9 +149,7 @@ class AppRepository(private val db: AppDatabase) {
         }
     }
 
-    suspend fun getUserById(userId: Int): User? = withContext(Dispatchers.IO) {
-        dao.getUserById(userId)
-    }
+    suspend fun getUserById(userId: Int): Flow<User?> = dao.getUserById(userId)
 
     suspend fun checkAndRefreshRepetitions(userId: Int) = withContext(Dispatchers.IO) {
         val currentTime = System.currentTimeMillis()

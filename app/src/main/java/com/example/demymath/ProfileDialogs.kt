@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -38,21 +39,17 @@ import kotlinx.coroutines.launch
 fun ProfileDialogManager(
     type: ProfileDialogType?,
     repository: AppRepository,
-    userId: Int,
-    onDismiss: () -> Unit,
-    onUserChanged: (Int) -> Unit
+    viewModel: SharedViewModel,
+    onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val currentUser by viewModel.currentUser.collectAsState()
     var userList by remember { mutableStateOf(emptyList<User>()) }
     var targetUser by remember { mutableStateOf<User?>(null) }
 
-    val currentUser by produceState<User?>(initialValue = null, userId) {
-        value = repository.getUserById(userId)
-    }
-
-    // Завантаження списку користувачів для діалогів вибору
+    // Завантаження списку користувачів (тільки коли потрібно)
     LaunchedEffect(type) {
         if (type == ProfileDialogType.LOGIN || type == ProfileDialogType.DELETE_SELECT) {
             userList = repository.getAllUsers()
@@ -65,7 +62,7 @@ fun ProfileDialogManager(
             onConfirm = { name, pass, uri ->
                 scope.launch {
                     val newId = repository.createNewUser(User(displayName = name, password = pass, avatarUrі = uri))
-                    onUserChanged(newId.toInt())
+                    viewModel.switchUser(newId.toInt())
                     onDismiss()
                 }
             }
@@ -75,7 +72,7 @@ fun ProfileDialogManager(
             users = userList,
             onDismiss = onDismiss,
             onSelect = { user ->
-                onUserChanged(user.userId)
+                viewModel.switchUser(user.userId)
                 onDismiss()
             }
         )
@@ -89,7 +86,7 @@ fun ProfileDialogManager(
                         repository.updateUser(it.copy(displayName = name, password = pass, avatarUrі = uri))
                     }
                     onDismiss()
-                    Toast.makeText(context, "Профіль оновлено", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Оновлено", Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -97,49 +94,42 @@ fun ProfileDialogManager(
         ProfileDialogType.DELETE_SELECT -> LoginDialog(
             users = userList.filter { it.userId != 1 },
             onDismiss = onDismiss,
-            onSelect = { user ->
-                targetUser = user
-                // Ми не можемо просто змінити type тут, тому використовуємо допоміжний стан
-            }
+            onSelect = { user -> targetUser = user }
         )
-
-        // Додаємо відсутню гілку підтвердження
-        ProfileDialogType.DELETE_CONFIRM -> {
-            // Ця гілка може знадобитися, якщо ви захочете викликати підтвердження напряму
-            // Але оскільки ми використовуємо targetUser, обробимо його нижче
-        }
 
         ProfileDialogType.RESET -> AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text("Скинути прогрес?") },
-            text = { Text("Це видалить усі ваші оцінки та результати. Ви впевнені?") },
+            text = { Text("Це видалить ваші оцінки та нотатки. Ви впевнені?") },
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch {
-                        repository.resetAllProgress(userId)
+                        currentUser?.let { repository.resetAllProgress(it.userId) }
                         onDismiss()
                     }
                 }) { Text("Так, видалити", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = onDismiss) { Text("Скасувати") } }
         )
-
-        null -> { /* Нічого не робимо */ }
+        else -> {}
     }
 
-    // Окреме вікно підтвердження, яке "спливає" поверх списку вибору
-    targetUser?.let { user ->
+    // Підтвердження видалення (логіка залишається, але використовує viewModel)
+    targetUser?.let { userToDelete ->
         DeleteConfirmDialog(
-            userName = user.displayName,
+            userName = userToDelete.displayName,
             onDismiss = { targetUser = null },
             onConfirm = { pass ->
-                if (pass == user.password) {
+                if (pass == userToDelete.password) {
                     scope.launch {
-                        repository.deleteUser(user)
-                        if (userId == user.userId) onUserChanged(1)
+                        repository.deleteUser(userToDelete)
+                        // Якщо видалили себе — перемикаємо на Гостя (ID 1)
+                        if (currentUser?.userId == userToDelete.userId) {
+                            viewModel.switchUser(1)
+                        }
                         targetUser = null
                         onDismiss()
-                        Toast.makeText(context, "Видалено", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Профіль видалено", Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     Toast.makeText(context, "Невірний пароль", Toast.LENGTH_SHORT).show()

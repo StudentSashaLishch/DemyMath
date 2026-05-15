@@ -22,17 +22,22 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navController: NavController) {
-    val marks by repository.getMarksForTopic(topicId).collectAsState(initial = emptyList())
-    val notes by repository.getNotesForTopic(topicId).collectAsState(initial = emptyList())
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val dateFormat = remember { SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()) }
+fun TopicStatisticsScreen(
+    topicId: String,
+    userId: Int, // Додано параметр
+    repository: AppRepository,
+    navController: NavController
+) {
+    // Тепер підписки залежать і від topicId, і від userId
+    val marks by repository.getMarksForTopic(topicId, userId).collectAsState(initial = emptyList())
+    val notes by repository.getNotesForTopic(topicId, userId).collectAsState(initial = emptyList())
 
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val dateFormat = remember { SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()) }
     var topicName by remember { mutableStateOf("...") }
     val lang = remember { Locale.getDefault().language }
 
-    // Завантажуємо назву теми
     LaunchedEffect(topicId) {
         val topic = repository.getTopicById(topicId)
         topic?.let {
@@ -54,7 +59,6 @@ fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navControl
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
-
             Text("Графік впевненості", style = MaterialTheme.typography.titleMedium)
 
             Box(modifier = Modifier.fillMaxWidth().height(200.dp).padding(vertical = 16.dp)) {
@@ -64,13 +68,11 @@ fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navControl
                         val points = marks.mapIndexed { i, m ->
                             Offset(i * spacing, size.height - (m.confidenceScore / 5f * size.height))
                         }
-
                         for (i in 0 until points.size - 1) {
                             drawLine(Color.Blue, points[i], points[i+1], strokeWidth = 5f)
                         }
                         points.forEach { drawCircle(Color.Red, radius = 10f, center = it) }
                     } else {
-                        // Якщо оцінка одна або немає
                         drawCircle(Color.Gray, radius = 10f, center = center, style = Stroke(width = 2f))
                     }
                 }
@@ -104,7 +106,7 @@ fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navControl
                                             duration = SnackbarDuration.Short
                                         )
                                         if (result == SnackbarResult.ActionPerformed) {
-                                            repository.saveNote(note.userId, note.topicId, note.text)
+                                            repository.saveNote(userId, note.topicId, note.text)
                                         }
                                     }
                                     showDeleteDialog = false
@@ -119,9 +121,7 @@ fun TopicStatisticsScreen(topicId: String, repository: AppRepository, navControl
                     SwipeToDismissBox(
                         state = dismissState,
                         enableDismissFromStartToEnd = false,
-                        backgroundContent = {
-                            Box(modifier = Modifier.fillMaxSize()) // Тут можна додати іконку видалення
-                        }
+                        backgroundContent = { Box(modifier = Modifier.fillMaxSize()) }
                     ) {
                         Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                             ListItem(

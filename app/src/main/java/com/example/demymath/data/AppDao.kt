@@ -97,11 +97,11 @@ interface AppDao {
 """)
     fun getAllLatestMarks(): Flow<List<ReflectionMarkEntity>>
 
-    @Query("SELECT * FROM reflection_marks WHERE topicId = :topicId ORDER BY timestamp ASC")
-    fun getMarksForTopic(topicId: String): Flow<List<ReflectionMarkEntity>>
+    @Query("SELECT * FROM reflection_marks WHERE topicId = :topicId AND userId = :userId ORDER BY timestamp ASC")
+    fun getMarksForTopic(topicId: String, userId: Int): Flow<List<ReflectionMarkEntity>>
 
-    @Query("SELECT * FROM reflection_notes WHERE topicId = :topicId ORDER BY timestamp DESC")
-    fun getNotesForTopic(topicId: String): Flow<List<ReflectionNoteEntity>>
+    @Query("SELECT * FROM reflection_notes WHERE topicId = :topicId AND userId = :userId ORDER BY timestamp DESC")
+    fun getNotesForTopic(topicId: String, userId: Int): Flow<List<ReflectionNoteEntity>>
 
     @Delete
     suspend fun deleteNote(note: ReflectionNoteEntity)
@@ -109,13 +109,13 @@ interface AppDao {
     @Query("""
     SELECT m.*, l.value as topicName 
     FROM reflection_marks m
-    JOIN user_progress u ON m.topicId = u.topicId
+    JOIN user_progress u ON m.topicId = u.topicId AND m.userId = u.userId
     JOIN topics t ON m.topicId = t.topicId
     JOIN localization l ON t.titleKey = l.`key`
-    WHERE u.status = 2 AND l.lang = :lang
-    AND m.markId IN (SELECT MAX(markId) FROM reflection_marks GROUP BY topicId)
+    WHERE u.userId = :userId AND u.status = 2 AND l.lang = :lang
+    AND m.markId IN (SELECT MAX(markId) FROM reflection_marks WHERE userId = :userId GROUP BY topicId)
 """)
-    fun getFinishedTopicsWithNames(lang: String): Flow<List<TopicWithMark>>
+    fun getFinishedTopicsWithNames(userId: Int, lang: String): Flow<List<AppDao.TopicWithMark>>
 
     // Створимо допоміжний клас для результату
     data class TopicWithMark(

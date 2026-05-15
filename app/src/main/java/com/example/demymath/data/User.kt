@@ -11,4 +11,5 @@ data class User(
     val password: String? = null,
     val avatarUrі: String? = null,
     val totalSolved: Int = 0,
+    val firebaseUid: String? = null
 )

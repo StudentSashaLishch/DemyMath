@@ -4,8 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
@@ -14,7 +13,6 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -26,19 +24,15 @@ import androidx.navigation.compose.rememberNavController
 import com.example.demymath.ui.theme.DemyMathTheme
 import androidx.annotation.StringRes
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.example.demymath.R
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.demymath.data.AppDatabase
 import com.example.demymath.data.AppRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 sealed class Screen(
     val route: String,
@@ -56,11 +50,13 @@ class MainActivity : ComponentActivity() {
         val db = AppDatabase.getDatabase(this)
         val repository = AppRepository(db)
 
+        val viewModel: SharedViewModel by viewModels { SharedViewModelFactory(repository) }
+
         enableEdgeToEdge()
         setContent {
             var isDarkTheme by remember { mutableStateOf(false) }
             DemyMathTheme(darkTheme = isDarkTheme) {
-                MainScreen(repository, isDarkTheme, onThemeChange = { isDarkTheme = it })
+                MainScreen(repository, viewModel, isDarkTheme, onThemeChange = { isDarkTheme = it })
             }
         }
     }
@@ -69,12 +65,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(
     repository: AppRepository,
+    viewModel: SharedViewModel,
     isDarkTheme: Boolean,
     onThemeChange: (Boolean) -> Unit
 ) {
     val navController = rememberNavController()
     val items = listOf(Screen.KnowledgeGraph, Screen.Statistics, Screen.Profile)
-    var currentUserId by rememberSaveable { mutableIntStateOf(1) }
+    val currentUserId by viewModel.currentUserId.collectAsState()
 
     LaunchedEffect(Unit) {
         repository.checkAndRefreshRepetitions(1)
@@ -111,46 +108,65 @@ fun MainScreen(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.KnowledgeGraph.route) {
-                KnowledgeGraphScreen(repository, navController)
+                KnowledgeGraphScreen(currentUserId, repository, navController)
             }
             composable(Screen.Profile.route) {
-                ProfileScreen(userId = 1,
+                ProfileScreen(
+                    viewModel = viewModel,
                     repository = repository,
                     isDarkTheme = isDarkTheme,
-                    onThemeChange = onThemeChange,
-                    onUserChanged = { newId -> currentUserId = newId }
+                    onThemeChange = onThemeChange
                 )
             }
             composable("learning/{topicId}") { backStackEntry ->
                 val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
-                LearningScreen(topicId, repository, navController)
+                LearningScreen(topicId, currentUserId, repository, navController)
             }
             composable("quiz/{topicId}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("topicId") ?: ""
-                QuizScreen(id, repository, navController)
+                QuizScreen(
+                    topicId = id,
+                    userId = currentUserId,
+                    repository = repository,
+                    navController = navController
+                )
             }
-            composable("reflection/{topicId}/{score}") { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("topicId") ?: ""
-                val score = backStackEntry.arguments?.getString("score")?.toInt() ?: 0
-                FinalReflectionScreen(id, score, repository, navController)
+            composable(
+                route = "reflection/{topicId}/{score}",
+                arguments = listOf(
+                    navArgument("topicId") { type = NavType.StringType },
+                    navArgument("score") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
+                val score = backStackEntry.arguments?.getInt("score") ?: 0
+                val currentUserId by viewModel.currentUserId.collectAsState()
+
+                FinalReflectionScreen(
+                    topicId = topicId,
+                    score = score,
+                    userId = currentUserId,
+                    repository = repository,
+                    navController = navController
+                )
             }
             composable("statistics") {
-                GeneralStatisticsScreen(repository, navController)
+                GeneralStatisticsScreen(viewModel, navController)
             }
             composable(
                 route = "topic_stats/{topicId}",
                 arguments = listOf(navArgument("topicId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
-                TopicStatisticsScreen(topicId, repository, navController)
+                val currentUserId by viewModel.currentUserId.collectAsState()
+
+                TopicStatisticsScreen(
+                    topicId = topicId,
+                    userId = currentUserId,
+                    repository = repository,
+                    navController = navController
+                )
             }
         }
-    }
-}
-
-@Composable
-fun SimpleScreen(title: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = title, style = MaterialTheme.typography.headlineMedium)
     }
 }
