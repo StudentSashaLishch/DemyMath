@@ -166,4 +166,16 @@ interface AppDao {
 
     @Update
     suspend fun updateUser(user: User)
+
+    @Query("SELECT * FROM user_progress WHERE userId = :userId")
+    fun getUserProgressDirect(userId: Int): List<UserProgress>
+
+    @Query("SELECT * FROM reflection_marks WHERE userId = :userId")
+    fun getAllMarksForUserDirect(userId: Int): List<ReflectionMarkEntity>
+
+    @Query("SELECT * FROM reflection_notes WHERE userId = :userId")
+    fun getAllNotesForUserDirect(userId: Int): List<ReflectionNoteEntity>
+
+    @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
+    fun getUserByIdDirect(userId: Int): User?
 }

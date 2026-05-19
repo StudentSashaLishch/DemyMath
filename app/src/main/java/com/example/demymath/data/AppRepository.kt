@@ -3,6 +3,7 @@ package com.example.demymath.data
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.room.util.copy
 import com.example.demymath.ContentItem
 import com.example.demymath.Topic
 import com.example.demymath.TopicWithContent
@@ -10,10 +11,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import androidx.room.withTransaction
+import com.example.demymath.FirebaseSyncManager
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.tasks.await
 
 class AppRepository(private val db: AppDatabase) {
     private val dao = db.appDao()
+    private val syncManager by lazy { FirebaseSyncManager(db) }
 
     suspend fun getGraphData(userId: Int): List<Topic> = withContext(Dispatchers.IO) {
         val currentLang = Locale.getDefault().language
@@ -178,5 +183,65 @@ class AppRepository(private val db: AppDatabase) {
 
     suspend fun updateUser(user: User) = withContext(Dispatchers.IO) {
         dao.updateUser(user)
+    }
+
+    suspend fun linkAccountWithFirebase(userId: Int, email: String, pass: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val auth = FirebaseAuth.getInstance()
+            val authResult = try {
+                auth.createUserWithEmailAndPassword(email, pass).await()
+            } catch (e: Exception) {
+                auth.signInWithEmailAndPassword(email, pass).await()
+            }
+
+            val uid = authResult.user?.uid
+            val localUser = dao.getUserByIdDirect(userId)
+
+            if (localUser != null) {
+                dao.updateUser(localUser.copy(email = email, password = pass, firebaseUid = uid))
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun syncWithCloud(userId: Int, upload: Boolean): Result<Unit> {
+        return if (upload) {
+            syncManager.uploadDataToCloud(userId)
+        } else {
+            syncManager.downloadDataFromCloud(userId)
+        }
+    }
+
+    suspend fun migrateGuestProgressToUser(newUserId: Int) = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val guestId = 1
+
+            val guestProgress = dao.getUserProgressDirect(guestId)
+            guestProgress.forEach { progress ->
+                dao.upsertProgress(progress.copy(userId = newUserId))
+            }
+
+            val guestMarks = dao.getAllMarksForUserDirect(guestId)
+            guestMarks.forEach { mark ->
+                dao.insertReflectionMark(mark.copy(userId = newUserId, markId = 0))
+            }
+
+            val guestNotes = dao.getAllNotesForUserDirect(guestId)
+            guestNotes.forEach { note ->
+                dao.insertReflectionNote(note.copy(userId = newUserId, noteId = 0))
+            }
+
+            dao.deleteAllReflectionMarks(guestId)
+            dao.deleteAllTestProgress(guestId)
+            dao.resetAllUserProgress(guestId)
+            dao.deleteAllNotes(guestId)
+        }
+    }
+
+    suspend fun verifyUserPassword(userId: Int, passwordEntered: String): Boolean = withContext(Dispatchers.IO) {
+        val user = dao.getUserByIdDirect(userId)
+        user?.password == null || user.password == passwordEntered
     }
 }

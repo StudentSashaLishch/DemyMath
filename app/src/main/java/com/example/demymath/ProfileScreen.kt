@@ -92,6 +92,14 @@ fun ProfileScreen(
                         else Toast.makeText(context, "Профіль гостя не можна редагувати", Toast.LENGTH_SHORT).show()
                     }
                     ProfileAction.Delete -> activeDialog = ProfileDialogType.DELETE_SELECT
+                    ProfileAction.FirebaseBind -> {
+                        if (currentUser?.userId != 1) activeDialog = ProfileDialogType.FIREBASE_BIND
+                        else Toast.makeText(context, "Гість не може синхронізуватись", Toast.LENGTH_SHORT).show()
+                    }
+                    ProfileAction.Sync -> {
+                        if (currentUser?.firebaseUid != null) activeDialog = ProfileDialogType.SYNC_CHOICE
+                        else Toast.makeText(context, "Спочатку підключіть Firebase акаунт", Toast.LENGTH_SHORT).show()
+                    }
                     else -> Toast.makeText(context, "В розробці", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -248,5 +256,5 @@ fun ProfileContent(
 enum class ProfileAction { Create, Login, Logout, Edit, Delete, FirebaseBind, Sync }
 
 enum class ProfileDialogType {
-    CREATE, LOGIN, EDIT, DELETE_SELECT, DELETE_CONFIRM, RESET
+    CREATE, LOGIN, EDIT, DELETE_SELECT, DELETE_CONFIRM, RESET, FIREBASE_BIND, SYNC_CHOICE
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "236022353494",
+    "project_id": "demimath-5eae1",
+    "storage_bucket": "demimath-5eae1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:236022353494:android:debe580f73f0bc216ab5f7",
+        "android_client_info": {
+          "package_name": "com.example.demymath"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4nAhzWAM8KYigFy6_v_XQlXtM6HtuZT4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
